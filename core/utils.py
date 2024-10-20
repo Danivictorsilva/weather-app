@@ -4,7 +4,7 @@ import sys
 
 
 def resource(relative_path: str) -> str:
-    '''return absolute path of relative_path'''
+    '''Return absolute path of relative_path'''
 
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)

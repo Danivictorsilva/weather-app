@@ -10,8 +10,10 @@ if __name__ == '__main__':
         logger.debug('app: run.')
 
     app = QtWidgets.QApplication(sys.argv)
+
     window = MainWindow(flags=QtCore.Qt.Window |
                         QtCore.Qt.WindowStaysOnTopHint)
+
     window.show()
 
     try:

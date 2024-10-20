@@ -1,12 +1,34 @@
 
 import os
-import re
-
 from PyQt5 import QtCore, QtGui, QtWidgets
-
 from core.config import FORECAST_DAYS_SPAN
-from core.style import load_style
-from core.weather import WeatherData, WeatherDataCurrent, WeatherDataForecast
+from services.weatherService import WeatherData, WeatherDataCurrent, WeatherDataForecast
+
+
+class WeatherWidget(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setObjectName('todayWeatherWidget')
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 10, 0, 10)
+        self.layout.setSpacing(20)
+        self.layout.addWidget(CurrentWeatherFrame())
+        self.layout.addWidget(ForecastWeatherFrame())
+
+    def update(self, data: WeatherData):
+        weatherWidget = self.findChild(QtWidgets.QFrame, 'currentWeatherFrame')
+        weatherWidget.update(data.current, data.flag)
+
+        forecastWidget = self.findChild(
+            QtWidgets.QFrame, 'forecastWeatherFrame')
+        forecastWidget.update(data.forecast, data.flag)
+
+    def clear_widgets(self):
+        """Clear the weather widgets, used when changing location."""
+        widget = self.findChild(QtWidgets.QWidget, 'todayWeatherWidget')
+        widget.clear()
 
 
 class CurrentWeatherFrame(QtWidgets.QFrame):
@@ -54,7 +76,7 @@ class CurrentWeatherFrame(QtWidgets.QFrame):
         if data.icon is not None:
             filename = os.path.join('.', 'icons', data.icon + '@4x.png')
             pixmap = QtGui.QPixmap(filename)
-            pixmap = pixmap.scaled(256, 256, QtCore.Qt.KeepAspectRatio)
+            pixmap = pixmap.scaled(512, 512, QtCore.Qt.KeepAspectRatio)
 
             iconLabel = self.findChild(QtWidgets.QLabel, 'iconLabel')
             iconLabel.setPixmap(pixmap)
@@ -153,29 +175,3 @@ class ForecastWeatherFrame(QtWidgets.QFrame):
             popLabel = self.findChild(QtWidgets.QLabel, f'{day}popLabel')
             popLabel.setText(f'Precipitation: <strong>{
                              f'{float(dayInfo.max_day_pop) * 100:.0f}'}</strong>%')
-
-
-class TodayWeatherWidget(QtWidgets.QWidget):
-    def __init__(self):
-        super().__init__()
-
-        self.setObjectName('todayWeatherWidget')
-
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 10, 0, 10)
-        self.layout.setSpacing(20)
-        self.layout.addWidget(CurrentWeatherFrame())
-        self.layout.addWidget(ForecastWeatherFrame())
-
-    def update(self, data: WeatherData):
-        weatherWidget = self.findChild(QtWidgets.QFrame, 'currentWeatherFrame')
-        weatherWidget.update(data.current, data.flag)
-
-        forecastWidget = self.findChild(
-            QtWidgets.QFrame, 'forecastWeatherFrame')
-        forecastWidget.update(data.forecast, data.flag)
-
-    def clear_widgets(self):
-        """Clear the weather widgets, used when changing location."""
-        widget = self.findChild(QtWidgets.QWidget, 'todayWeatherWidget')
-        widget.clear()

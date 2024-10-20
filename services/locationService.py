@@ -1,24 +1,17 @@
 import json
 import logging
 import os
-from dataclasses import dataclass
 import requests
 from requests.exceptions import RequestException
-from .utils import resource
-from .exceptions import eprint, LocationServerError
-from .config import API_KEY, GEOLOCAL_URL, IPINFO_URL
-
-
-@dataclass
-class LocationData:
-    country: str
-    city: str
-    lat: float
-    lon: float
+from contracts.contracts import LocationData
+from core.utils import resource
+from core.exceptions import eprint, LocationServerError
+from core.config import API_KEY, GEOLOCAL_URL, IPINFO_URL
 
 
 class LocationService:
     def get_location(self) -> LocationData:
+        '''Return last fetched location'''
         return self.location
 
     def fetch_current(self) -> LocationData:
@@ -45,8 +38,8 @@ class LocationService:
 
             else:
                 data = {
-                    'city': 'S\u00e3o Paulo',
-                    'country': 'BR',
+                    'city': 'Location not found',
+                    'country': 'try again',
                     'loc': '-23.5475,-46.6361'
                 }
 
@@ -78,12 +71,14 @@ class LocationService:
 
         except (LocationServerError, RequestException) as error:
             eprint(error)
-            data = [{
+            data = [
+                {
                     'name': 'Location not found',
                     'country': 'try again',
                     'lat': '-23.5475',
                     'lon': '-46.6361'
-                    }]
+                }
+            ]
 
         country = data[0]['country']
         city = data[0]['name']

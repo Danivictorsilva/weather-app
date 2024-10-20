@@ -1,13 +1,13 @@
 from PyQt5 import QtCore, QtWidgets
 from core.config import WEATHER_UPDATE_INTERVAL
-from core.location import LocationService
+from services.locationService import LocationService
 from core.style import load_style
-from core.weather import OpenWeatherService
+from services.weatherService import WeatherService
 from widgets.centralWidget import CentralWidget, LocAndWeatherPayload
 
 location_service = LocationService()
 location_service.fetch_current()
-weather_service = OpenWeatherService()
+weather_service = WeatherService()
 
 
 class MainWindow(QtWidgets.QMainWindow):

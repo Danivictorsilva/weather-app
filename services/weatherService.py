@@ -2,48 +2,17 @@
 import json
 import logging
 import os
-from dataclasses import dataclass
-import requests
-from requests.exceptions import RequestException
 import datetime
-
-from core.location import LocationData
-from .config import *
-from .utils import resource
-from .exceptions import eprint, WeatherServerError
+import requests
 import calendar
+from requests.exceptions import RequestException
+from contracts.contracts import *
+from core.config import *
+from core.utils import resource
+from core.exceptions import eprint, WeatherServerError
 
 
-@dataclass
-class WeatherDataCurrent:
-    icon: str | None
-    t: float
-    t_feels_like: float
-    description: str
-    dt: str
-
-    def __str__(self) -> str:
-        return f'{self.icon}, {self.t}, C'
-
-
-@dataclass
-class WeatherDataForecast:
-    date: str
-    weekday: str
-    temp_min: float
-    temp_max: float
-    midday_icon: str
-    max_day_pop: str
-
-
-@dataclass
-class WeatherData:
-    flag: bool
-    current: WeatherDataCurrent
-    forecast: tuple[WeatherDataForecast]
-
-
-class OpenWeatherService:
+class WeatherService:
     def get(self, location: LocationData) -> WeatherData:
         '''Get weather info from a given location'''
         try:
@@ -55,11 +24,9 @@ class OpenWeatherService:
             if response.status_code == 200:
                 flag = True
                 weather_data = response.json()
-
                 filename = os.path.join('.', '.weather.json')
                 with open(resource(filename), 'w') as file:
                     json.dump(weather_data, file)
-
             else:
                 raise WeatherServerError()
 
@@ -71,7 +38,6 @@ class OpenWeatherService:
             if response.status_code == 200:
                 flag = True
                 forecast_data = response.json()
-
                 filename = os.path.join('.', '.forecast.json')
                 with open(resource(filename), 'w') as file:
                     json.dump(forecast_data, file)
@@ -79,8 +45,8 @@ class OpenWeatherService:
                 raise WeatherServerError()
 
         except (RequestException, WeatherServerError) as error:
+            flag = False
             eprint(error)
-
             filename = os.path.join('.', '.weather.json')
             if os.path.exists(resource(filename)):
                 with open(resource(filename), 'r') as file:
@@ -94,7 +60,6 @@ class OpenWeatherService:
                     forecast_data = json.load(file)
             else:
                 forecast_data = {}
-            flag = False
 
         current = self.process_current_weather_data(weather_data)
         forecast = self.process_forecast_data(forecast_data)
@@ -123,22 +88,22 @@ class OpenWeatherService:
 
     def process_forecast_data(self, data) -> list[WeatherDataForecast]:
         '''Process raw api forecast response to WeatherDataForecast '''
-        weather_list = data['list']
-        result = []
-        for dayInfo in weather_list:
-            date = datetime.datetime.fromtimestamp(dayInfo['dt'])
-            result.append(
-                {
-                    'date': date.strftime('%d/%m'),
-                    'datetime': dayInfo['dt_txt'],
-                    'weekday': calendar.day_name[date.weekday()],
-                    'temp_min': dayInfo['main']['temp_min'],
-                    'temp_max': dayInfo['main']['temp_max'],
-                    'icon': dayInfo['weather'][0]['icon'],
-                    'pop': dayInfo['pop']
-                })
+        weather_list = [
+            dict(
+                date=datetime.datetime.fromtimestamp(
+                    dayInfo['dt']).strftime('%d/%m'),
+                weekday=calendar.day_name[datetime.datetime.fromtimestamp(
+                    dayInfo['dt']).weekday()],
+                temp_min=dayInfo['main']['temp_min'],
+                temp_max=dayInfo['main']['temp_max'],
+                icon=dayInfo['weather'][0]['icon'],
+                pop=dayInfo['pop'],
+                datetime=dayInfo['dt_txt']
+            )
+            for dayInfo in data['list']
+        ]
 
-        grouped_forecast = self.group_day_forecast(result)
+        grouped_forecast = self.group_day_forecast(weather_list)
 
         return [
             WeatherDataForecast(
@@ -146,7 +111,7 @@ class OpenWeatherService:
                 weekday=day[0]['weekday'],
                 temp_min=min([value['temp_min'] for value in day]),
                 temp_max=max([value['temp_max'] for value in day]),
-                midday_icon=day[12//FORECAST_HOUR_PERIOD]['icon'],
+                midday_icon=day[12 // FORECAST_HOUR_PERIOD]['icon'],
                 max_day_pop=max([value['pop'] for value in day])
             )
             for day in grouped_forecast
@@ -155,14 +120,16 @@ class OpenWeatherService:
     def group_day_forecast(self, forecast_list: list):
         '''Group forecast data by day. Return a list of compiled hourly forecast for the next (FORECAST_DAYS_SPAN - 1) days'''
         grouped_data = []
-        for obj in forecast_list:
+        for item in forecast_list:
             if len(grouped_data) == 0:
-                grouped_data.append([obj])
+                grouped_data.append([item])
             else:
-                if obj['date'] == grouped_data[-1][0]['date']:
-                    grouped_data[-1].append(obj)
+                if item['date'] == grouped_data[-1][0]['date']:
+                    grouped_data[-1].append(item)
                 else:
-                    grouped_data.append([obj])
+                    grouped_data.append([item])
+
         if len(grouped_data) == FORECAST_DAYS_SPAN + 1:
             grouped_data = grouped_data[1:]
+
         return grouped_data[:-1]

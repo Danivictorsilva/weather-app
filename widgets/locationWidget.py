@@ -1,7 +1,7 @@
 
 from PyQt5 import QtCore, QtWidgets
 
-from core.location import LocationData
+from services.locationService import LocationData
 
 
 class LocationWidget(QtWidgets.QWidget):

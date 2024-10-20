@@ -2,7 +2,6 @@
 import logging
 import logging.config
 import os
-
 from .utils import resource
 
 DEBUG = True
