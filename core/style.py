@@ -6,7 +6,7 @@ from .utils import resource
 
 
 def load_style() -> dict:
-    '''Import styles file'''
+    '''Import styles file.'''
     filepath = os.path.join('.', 'styles', 'app.css')
     try:
         with open(resource(filepath), mode='r') as file:

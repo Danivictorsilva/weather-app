@@ -27,8 +27,8 @@ class WeatherDataForecast:
     weekday: str
     temp_min: float
     temp_max: float
-    midday_icon: str
-    max_day_pop: str
+    midday_icon: str | None
+    max_day_pop: float
 
 
 @dataclass

@@ -14,7 +14,7 @@ from core.exceptions import eprint, WeatherServerError
 
 class WeatherService:
     def get(self, location: LocationData) -> WeatherData:
-        '''Get weather info from a given location'''
+        '''Get weather info from a given location.'''
         try:
             response = requests.get(
                 f'{WEATHER_URL}?lat={location.lat}&lon={location.lon}&units={
@@ -76,7 +76,7 @@ class WeatherService:
         )
 
     def process_current_weather_data(self, data) -> WeatherDataCurrent:
-        '''Process raw api weather response to WeatherDataCurrent '''
+        '''Process raw api weather response to WeatherDataCurrent.'''
         return WeatherDataCurrent(
             icon=data['weather'][0]['icon'],
             t=data['main']['temp'],
@@ -87,7 +87,7 @@ class WeatherService:
         )
 
     def process_forecast_data(self, data) -> list[WeatherDataForecast]:
-        '''Process raw api forecast response to WeatherDataForecast '''
+        '''Process raw api forecast response to WeatherDataForecast.'''
         weather_list = [
             dict(
                 date=datetime.datetime.fromtimestamp(
@@ -109,16 +109,16 @@ class WeatherService:
             WeatherDataForecast(
                 date=day[0]['date'],
                 weekday=day[0]['weekday'],
-                temp_min=min([value['temp_min'] for value in day]),
-                temp_max=max([value['temp_max'] for value in day]),
+                temp_min=min([float(item['temp_min']) for item in day]),
+                temp_max=max([float(item['temp_max']) for item in day]),
                 midday_icon=day[12 // FORECAST_HOUR_PERIOD]['icon'],
-                max_day_pop=max([value['pop'] for value in day])
+                max_day_pop=max([float(item['pop']) for item in day])
             )
             for day in grouped_forecast
         ]
 
     def group_day_forecast(self, forecast_list: list):
-        '''Group forecast data by day. Return a list of compiled hourly forecast for the next (FORECAST_DAYS_SPAN - 1) days'''
+        '''Group forecast data by day. Return a list of compiled hourly forecast for the next (FORECAST_DAYS_SPAN - 1) days.'''
         grouped_data = []
         for item in forecast_list:
             if len(grouped_data) == 0:

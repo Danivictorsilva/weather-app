@@ -11,11 +11,11 @@ from core.config import API_KEY, GEOLOCAL_URL, IPINFO_URL
 
 class LocationService:
     def get_location(self) -> LocationData:
-        '''Return last fetched location'''
+        '''Return last fetched location.'''
         return self.location
 
     def fetch_current(self) -> LocationData:
-        '''Get current location by ip'''
+        '''Get current location by ip.'''
         try:
             response = requests.get(IPINFO_URL)
             if response.status_code == 200:
@@ -59,7 +59,7 @@ class LocationService:
         return self.location
 
     def fetch_by_city(self, city: str) -> LocationData:
-        '''Get current location by inserted location'''
+        '''Get current location by inserted location.'''
         try:
             response = requests.get(
                 f'{GEOLOCAL_URL}?q={city}&limit=1&appid={API_KEY}')

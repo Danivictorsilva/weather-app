@@ -25,11 +25,6 @@ class WeatherWidget(QtWidgets.QWidget):
             QtWidgets.QFrame, 'forecastWeatherFrame')
         forecastWidget.update(data.forecast, data.flag)
 
-    def clear_widgets(self):
-        """Clear the weather widgets, used when changing location."""
-        widget = self.findChild(QtWidgets.QWidget, 'todayWeatherWidget')
-        widget.clear()
-
 
 class CurrentWeatherFrame(QtWidgets.QFrame):
 
@@ -154,11 +149,11 @@ class ForecastWeatherFrame(QtWidgets.QFrame):
                 )}</strong><br>{dayInfo.date}'
             )
 
-            filename = os.path.join('.', 'icons', dayInfo.midday_icon + '.png')
-            pixmap = QtGui.QPixmap(filename)
-
-            iconLabel = self.findChild(QtWidgets.QLabel, f'{day}iconLabel')
-            iconLabel.setPixmap(pixmap)
+            if dayInfo.midday_icon is not None:
+                filename = os.path.join('.', 'icons', dayInfo.midday_icon + '.png')
+                pixmap = QtGui.QPixmap(filename)
+                iconLabel = self.findChild(QtWidgets.QLabel, f'{day}iconLabel')
+                iconLabel.setPixmap(pixmap)
 
             maxTempLabel = self.findChild(
                 QtWidgets.QLabel, f'{day}maxTempLabel')
