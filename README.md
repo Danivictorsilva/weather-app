@@ -1,7 +1,7 @@
 # Description:
 Simple weather appplication developed in python that consults [OpenWeather API](https://openweathermap.org/api) to get weather data (current and forecast)
 
-![img](https://github.com/Danivictorsilva/weather-app/tree/master/screenshots/img.png?raw=true)
+![img](/screenshots/img.png)
 
 # To run:
 1. Create a .env file with `API_KEY=<your_openweather_api_key>`
