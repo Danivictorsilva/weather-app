@@ -3,7 +3,6 @@ import logging
 import logging.config
 import os
 
-from .location import IpInfoLocationService
 from .utils import resource
 
 DEBUG = True
@@ -56,18 +55,20 @@ with open(resource(filepath), mode='r') as file:
 
         os.environ[key] = value
 
-API_KEY = os.environ['API_KEY']  # openweathermap API_KEY
+API_KEY = os.environ['API_KEY']
 
 # --------        APP        --------
 APPLICATION_NAME = 'Weather App'
-APPLICATION_VERSION = '0.0.0'
-
-
-# --------        LOCATION        --------
-LOCATION = IpInfoLocationService().get()
+APPLICATION_VERSION = '1.0.0'
+IPINFO_URL = 'https://ipinfo.io/'
+OPENWEATHER_BASE_URL = 'https://api.openweathermap.org/'
+WEATHER_URL = OPENWEATHER_BASE_URL + 'data/2.5/weather'
+FORECAST_URL = OPENWEATHER_BASE_URL + 'data/2.5/forecast'
+GEOLOCAL_URL = OPENWEATHER_BASE_URL + 'geo/1.0/direct'
 
 # --------        WEATHER        --------
 WEATHER_UPDATE_INTERVAL = 10 * 60 * 1000  # time, in msec
-
 FORECAST_DAYS_SPAN = 5
 FORECAST_HOUR_PERIOD = 3
+EXCLUDE = ','.join(['minutely', 'hourly', 'alerts'])
+UNITS = 'metric'

@@ -141,9 +141,7 @@ class ForecastWeatherFrame(QtWidgets.QFrame):
             maxTempLabel = self.findChild(
                 QtWidgets.QLabel, f'{day}maxTempLabel')
             maxTempLabel.setText(
-                f'Max: <strong>{
-                    dayInfo.temp_max:.0f}</strong> <span>&#8451;</span>'
-            )
+                f'Max: <strong>{dayInfo.temp_max:.0f}</strong> <span>&#8451;</span>')
 
             minTempLabel = self.findChild(
                 QtWidgets.QLabel, f'{day}minTempLabel')
@@ -176,3 +174,8 @@ class TodayWeatherWidget(QtWidgets.QWidget):
         forecastWidget = self.findChild(
             QtWidgets.QFrame, 'forecastWeatherFrame')
         forecastWidget.update(data.forecast, data.flag)
+
+    def clear_widgets(self):
+        """Clear the weather widgets, used when changing location."""
+        widget = self.findChild(QtWidgets.QWidget, 'todayWeatherWidget')
+        widget.clear()

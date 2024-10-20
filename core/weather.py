@@ -2,13 +2,13 @@
 import json
 import logging
 import os
-from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from dataclasses import dataclass
 import requests
 from requests.exceptions import RequestException
 import datetime
-from .config import FORECAST_DAYS_SPAN, FORECAST_HOUR_PERIOD, LOCATION, API_KEY
+
+from core.location import LocationData
+from .config import *
 from .utils import resource
 from .exceptions import eprint, WeatherServerError
 import calendar
@@ -43,48 +43,38 @@ class WeatherData:
     forecast: tuple[WeatherDataForecast]
 
 
-class OpenWeatherMapWeatherService:
-    @classmethod
-    def from_dict(cls, data: Mapping) -> WeatherData:
-        return WeatherData(
-            flag=data['flag'],
-            current=WeatherDataCurrent(**data),
-            forecast=tuple(WeatherDataForecast(**datum)
-                           for datum in data['forecast']),
-        )
-
-    def get(self) -> WeatherData:
+class OpenWeatherService:
+    def get(self, location: LocationData) -> WeatherData:
+        '''Get weather info from a given location'''
         try:
-            exclude = ','.join(['minutely', 'hourly', 'alerts'])
-            units = 'metric'
-            url = f'https://api.openweathermap.org/data/2.5/weather?lat={LOCATION.lat}&lon={
-                LOCATION.lon}&units={units}&exclude={exclude}&appid={API_KEY}'
-
-            response = requests.get(url)
+            response = requests.get(
+                f'{WEATHER_URL}?lat={location.lat}&lon={location.lon}&units={
+                    UNITS}&exclude={EXCLUDE}&appid={API_KEY}'
+            )
 
             if response.status_code == 200:
                 flag = True
-                weatherData = response.json()
+                weather_data = response.json()
 
                 filename = os.path.join('.', '.weather.json')
                 with open(resource(filename), 'w') as file:
-                    json.dump(weatherData, file)
+                    json.dump(weather_data, file)
 
             else:
                 raise WeatherServerError()
 
-            url = f'https://api.openweathermap.org/data/2.5/forecast?lat={LOCATION.lat}&lon={
-                LOCATION.lon}&units={units}&exclude={exclude}&appid={API_KEY}'
-
-            response = requests.get(url)
+            response = requests.get(
+                f'{FORECAST_URL}?lat={location.lat}&lon={location.lon}&units={
+                    UNITS}&exclude={EXCLUDE}&appid={API_KEY}'
+            )
 
             if response.status_code == 200:
                 flag = True
-                forecastData = response.json()
+                forecast_data = response.json()
 
                 filename = os.path.join('.', '.forecast.json')
                 with open(resource(filename), 'w') as file:
-                    json.dump(forecastData, file)
+                    json.dump(forecast_data, file)
             else:
                 raise WeatherServerError()
 
@@ -94,40 +84,20 @@ class OpenWeatherMapWeatherService:
             filename = os.path.join('.', '.weather.json')
             if os.path.exists(resource(filename)):
                 with open(resource(filename), 'r') as file:
-                    weatherData = json.load(file)
+                    weather_data = json.load(file)
             else:
-                weatherData = {}
+                weather_data = {}
 
             filename = os.path.join('.', '.forecast.json')
             if os.path.exists(resource(filename)):
                 with open(resource(filename), 'r') as file:
-                    forecastData = json.load(file)
+                    forecast_data = json.load(file)
             else:
-                forecastData = {}
+                forecast_data = {}
             flag = False
 
-        current = WeatherDataCurrent(
-            icon=weatherData['weather'][0]['icon'],
-            t=weatherData['main']['temp'],
-            t_feels_like=weatherData['main']['feels_like'],
-            description=weatherData['weather'][0]['description'],
-            dt=datetime.datetime.fromtimestamp(
-                weatherData['dt']).strftime('%H:%M %d/%m')
-        )
-
-        forecastProcessed = self.process_forecast_data(forecastData)
-
-        forecast = tuple([
-            WeatherDataForecast(
-                date=datum['date'],
-                weekday=datum['weekday'],
-                temp_min=datum['day_min'],
-                temp_max=datum['day_max'],
-                midday_icon=datum['midday_icon'],
-                max_day_pop=datum['max_day_pop']
-            )
-            for datum in forecastProcessed
-        ])
+        current = self.process_current_weather_data(weather_data)
+        forecast = self.process_forecast_data(forecast_data)
 
         logger = logging.getLogger('app')
         logger.info('Weather: {}'.format(
@@ -137,40 +107,55 @@ class OpenWeatherMapWeatherService:
         return WeatherData(
             flag=flag,
             current=current,
-            forecast=forecast,
+            forecast=tuple(forecast),
         )
 
-    def process_forecast_data(self, data):
+    def process_current_weather_data(self, data) -> WeatherDataCurrent:
+        '''Process raw api weather response to WeatherDataCurrent '''
+        return WeatherDataCurrent(
+            icon=data['weather'][0]['icon'],
+            t=data['main']['temp'],
+            t_feels_like=data['main']['feels_like'],
+            description=data['weather'][0]['description'],
+            dt=datetime.datetime.fromtimestamp(
+                data['dt']).strftime('%H:%M %d/%m')
+        )
+
+    def process_forecast_data(self, data) -> list[WeatherDataForecast]:
+        '''Process raw api forecast response to WeatherDataForecast '''
         weather_list = data['list']
         result = []
         for dayInfo in weather_list:
             date = datetime.datetime.fromtimestamp(dayInfo['dt'])
-            result.append({
-                'date': date.strftime('%d/%m'),
-                'datetime': dayInfo['dt_txt'],
-                'weekday': calendar.day_name[date.weekday()],
-                'temp_min': dayInfo['main']['temp_min'],
-                'temp_max': dayInfo['main']['temp_max'],
-                'icon': dayInfo['weather'][0]['icon'],
-                'pop': dayInfo['pop']
-            })
+            result.append(
+                {
+                    'date': date.strftime('%d/%m'),
+                    'datetime': dayInfo['dt_txt'],
+                    'weekday': calendar.day_name[date.weekday()],
+                    'temp_min': dayInfo['main']['temp_min'],
+                    'temp_max': dayInfo['main']['temp_max'],
+                    'icon': dayInfo['weather'][0]['icon'],
+                    'pop': dayInfo['pop']
+                })
 
-        groupedForecast = self.group_day_forecast(result)
+        grouped_forecast = self.group_day_forecast(result)
 
-        return [{
-            'date': day[0]['date'],
-            'weekday': day[0]['weekday'],
-            'day_min': min([value['temp_min'] for value in day]),
-            'day_max': max([value['temp_min'] for value in day]),
-            'midday_icon': day[12//FORECAST_HOUR_PERIOD]['icon'],
-            'max_day_pop': max([value['pop'] for value in day])
-        }
-            for day in groupedForecast
+        return [
+            WeatherDataForecast(
+                date=day[0]['date'],
+                weekday=day[0]['weekday'],
+                temp_min=min([value['temp_min'] for value in day]),
+                temp_max=max([value['temp_max'] for value in day]),
+                midday_icon=day[12//FORECAST_HOUR_PERIOD]['icon'],
+                max_day_pop=max([value['pop'] for value in day])
+            )
+            for day in grouped_forecast
         ]
 
-    def group_day_forecast(self, forecastList: list):
+    def group_day_forecast(self, forecast_list: list):
+        '''Group forecast data by day. Return a list of compiled hourly forecast for the next (FORECAST_DAYS_SPAN - 1) days'''
         grouped_data = []
-        for obj in forecastList:
+        for obj in forecast_list:
             if len(grouped_data) == 0:
                 grouped_data.append([obj])
             else:

@@ -1,58 +1,21 @@
-
-import logging
-import sys
-
 from PyQt5 import QtCore, QtWidgets
-
-from core.config import *
+from core.config import WEATHER_UPDATE_INTERVAL
+from core.location import LocationService
 from core.style import load_style
-from core.weather import WeatherData, OpenWeatherMapWeatherService
-from widgets.todayWeatherWidget import TodayWeatherWidget
-from widgets.locationWidget import LocationWidget
-from widgets.infoWidget import InfoWidget
+from core.weather import OpenWeatherService
+from widgets.centralWidget import CentralWidget, LocAndWeatherPayload
 
-
-weather_service = OpenWeatherMapWeatherService()
-
-class UpdateWeatherThread(QtCore.QThread):
-    updated = QtCore.pyqtSignal(WeatherData)
-
-    def __init__(self):
-        super().__init__()
-
-    def run(self):
-        data = weather_service.get()
-        self.updated.emit(data)
-
-
-class CentralWidget(QtWidgets.QFrame):
-
-    def __init__(self):
-        super().__init__()
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(0)
-
-        layout.addWidget(LocationWidget())
-        layout.addWidget(TodayWeatherWidget())
-        layout.addWidget(InfoWidget())
-
-    def update(self, data: WeatherData):
-        widget = self.findChild(QtWidgets.QWidget, 'todayWeatherWidget')
-        widget.update(data)
+location_service = LocationService()
+location_service.fetch_current()
+weather_service = OpenWeatherService()
 
 
 class MainWindow(QtWidgets.QMainWindow):
-
     def __init__(self, flags):
         super().__init__(flags=flags)
 
         self.setWindowFlag(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        # icon
-        # icon = QtGui.QIcon(resource('icon.ico'))
-        # self.setWindowIcon(icon)
 
         style = load_style()
         self.setStyleSheet(style)
@@ -60,18 +23,46 @@ class MainWindow(QtWidgets.QMainWindow):
         self.centralWidget = CentralWidget()
         self.setCentralWidget(self.centralWidget)
 
-        # update weather thread
+        button_layout = QtWidgets.QHBoxLayout()
+        self.myLocationButton = QtWidgets.QPushButton("My Location", self)
+        self.searchCityButton = QtWidgets.QPushButton("Search City", self)
+
+        self.myLocationButton.clicked.connect(
+            self.update_weather_with_ip_location)
+        self.searchCityButton.clicked.connect(self.search_city_weather)
+
+        button_layout.addWidget(self.myLocationButton)
+        button_layout.addWidget(self.searchCityButton)
+
+        layout: QtWidgets.QVBoxLayout = self.centralWidget.layout()
+        layout.insertLayout(0, button_layout)
+
         self.updateWeatherThread = UpdateWeatherThread()
         self.updateWeatherThread.updated.connect(self.centralWidget.update)
 
-        # update weather timer
         self.updateWeatherTimer = QtCore.QTimer()
         self.updateWeatherTimer.setInterval(WEATHER_UPDATE_INTERVAL)
         self.updateWeatherTimer.timeout.connect(self.updateWeatherThread.start)
         self.updateWeatherTimer.start()
 
-        # first shot
         QtCore.QTimer.singleShot(300, self.updateWeatherThread.start)
+
+    def update_weather_with_ip_location(self):
+        location_service.fetch_current()
+        self.updateWeatherThread.start()
+
+    def search_city_weather(self):
+        dialog = QtWidgets.QInputDialog(self)
+        dialog.setWindowTitle('Search City')
+        dialog.setLabelText('Enter city name:')
+        dialog.setOkButtonText('Search')
+        dialog.setCancelButtonText('Cancel')
+
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            city = dialog.textValue()
+            if city:
+                location_service.fetch_by_city(city)
+                self.updateWeatherThread.start()
 
     # used to move frameless window
     def mousePressEvent(self, event):
@@ -87,21 +78,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self._beginPos = event.globalPos()
 
 
-if __name__ == '__main__':
+class UpdateWeatherThread(QtCore.QThread):
+    updated = QtCore.pyqtSignal(object)
 
-    if DEBUG:
-        logger = logging.getLogger('app')
-        logger.debug('app: run.')
+    def __init__(self):
+        super().__init__()
 
-    app = QtWidgets.QApplication(sys.argv)
-
-    window = MainWindow(
-        flags=QtCore.Qt.Window | QtCore.Qt.WindowStaysOnTopHint,
-    )
-
-    window.show()
-
-    try:
-        sys.exit(app.exec())
-    except SystemExit:
-        print('Closing window...')
+    def run(self):
+        location = location_service.get_location()
+        self.updated.emit(
+            LocAndWeatherPayload(
+                location_data=location,
+                weather_data=weather_service.get(location)
+            ))
